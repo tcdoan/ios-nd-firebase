@@ -110,10 +110,28 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
     
     func configureRemoteConfig() {
         // TODO: configure remote configuration settings
+        let remoteConfigSettings = RemoteConfigSettings()
+        remoteConfig = RemoteConfig.remoteConfig()
+        remoteConfig.configSettings = remoteConfigSettings
     }
     
     func fetchConfig() {
         // TODO: update to the current coniguratation
+        let expirationDuration: Double = 0
+        remoteConfig.fetch(withExpirationDuration: expirationDuration) { (status, error ) in
+            if status == .success {
+                print("config fetched")
+                self.remoteConfig.activate()
+                let friendlyMsgLen = self.remoteConfig["friendly_msg_length"]
+                if friendlyMsgLen.source != .static {
+                    self.msglength = friendlyMsgLen.numberValue
+                    print("Msg Length: \(self.msglength)")
+                }
+            } else {
+                print("config NOT fetched. \(error!)")
+            }
+                
+        }
     }
     
     // MARK: Sign In and Out
@@ -137,7 +155,11 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
             // TODO: Set up app to send and receive messages when signed in
             configureDatabase()
             configureStorage()
+            configureRemoteConfig()
+            fetchConfig()
         }
+        
+        
     }
     
     func loginSession() {
