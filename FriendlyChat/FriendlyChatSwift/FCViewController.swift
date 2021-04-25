@@ -17,6 +17,8 @@
 import UIKit
 import Firebase
 import FirebaseUI
+import FirebaseAuth
+import GoogleSignIn
 
 // MARK: - FCViewController
 
@@ -53,9 +55,7 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
     // MARK: Life Cycle
     
     override func viewDidLoad() {
-        self.signedInStatus(isSignedIn: true)
-        
-        // TODO: Handle what users see when view loads
+        configureAuth()
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -66,11 +66,33 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
     // MARK: Config
     
     func configureAuth() {
-        // TODO: configure firebase authentication
+        let providers: [FUIAuthProvider] = [FUIGoogleAuth(), FUIEmailAuth()]
+        FUIAuth.defaultAuthUI()?.providers = providers
+        _authHandle = Auth.auth().addStateDidChangeListener {(auth, user) in
+            self.messages.removeAll();
+            self.messagesTable.reloadData()
+            if let activeUser = user {
+                if self.user != activeUser {
+                    self.user = activeUser
+                    self.signedInStatus(isSignedIn: true)
+                    let name = user!.email!.components(separatedBy: "@")[0]
+                    self.displayName = name
+                }
+            } else {
+                self.signedInStatus(isSignedIn: false)
+                self.loginSession()
+            }
+        }
     }
     
     func configureDatabase() {
         // TODO: configure database to sync messages
+        ref = FirebaseDatabase.Database.database().reference()
+        _refHandle = ref.child("messages").observe(.childAdded) {(snapshot: DataSnapshot) in
+            self.messages.append(snapshot)
+            self.messagesTable.insertRows(at: [IndexPath(row: self.messages.count-1, section: 0)], with: .automatic)
+            self.scrollToBottomMessage()
+        }
     }
     
     func configureStorage() {
@@ -79,6 +101,8 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
     
     deinit {
         // TODO: set up what needs to be deinitialized when view is no longer being used
+        ref.child("messages").removeObserver(withHandle: _refHandle)
+        Auth.auth().removeStateDidChangeListener(_authHandle)
     }
     
     // MARK: Remote Config
@@ -110,6 +134,7 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
             messageTextField.delegate = self
             
             // TODO: Set up app to send and receive messages when signed in
+            configureDatabase()
         }
     }
     
@@ -122,6 +147,9 @@ class FCViewController: UIViewController, UINavigationControllerDelegate {
     
     func sendMessage(data: [String:String]) {
         // TODO: create method that pushes message to the firebase database
+        var mdata = data
+        mdata[Constants.MessageFields.name] = displayName
+        ref.child("messages").childByAutoId().setValue(mdata)
     }
     
     func sendPhotoMessage(photoData: Data) {
@@ -201,8 +229,13 @@ extension FCViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         // dequeue cell
         let cell: UITableViewCell! = messagesTable.dequeueReusableCell(withIdentifier: "messageCell", for: indexPath)
+        let messageSnapshot: DataSnapshot! = messages[indexPath.row]
+        let message = messageSnapshot.value as! [String:String]
+        let name = message[Constants.MessageFields.name] ?? "[username]"
+        let text = message[Constants.MessageFields.text] ?? "[message]"
+        cell!.textLabel?.text = name + ": " + text
+        cell!.imageView?.image = self.placeholderImage
         return cell!
-        // TODO: update cell to display message data
     }
     
     func tableView(_ tableView: UITableView, estimatedHeightForRowAt indexPath: IndexPath) -> CGFloat {

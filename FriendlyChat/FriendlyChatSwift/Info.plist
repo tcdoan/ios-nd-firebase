@@ -25,11 +25,13 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleIdentifier</key>
+			<string></string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.572110459921-8h1fopisd8l0i7ga85av0ikhiu78uv43</string>
 			</array>
 		</dict>
 	</array>
